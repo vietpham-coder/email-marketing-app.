@@ -1,0 +1,9 @@
+node_modules
+.next
+.env*.local
+data/*.json
+data/*.xlsx
+*.js
+!next.config.js
+!migrate.js
+.DS_Store
