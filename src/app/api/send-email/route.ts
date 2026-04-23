@@ -17,7 +17,14 @@ export async function POST(req: NextRequest) {
     const cName = campaignName || `Campaign ${new Date().toLocaleDateString()}`;
     const host = req.headers.get("host");
     const protocol = host?.includes("localhost") ? "http" : "https";
-    const detectedUrl = host ? `${protocol}://${host}` : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    let detectedUrl = host ? `${protocol}://${host}` : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+    // CRITICAL FIX: If running locally, force the tracking URL to point to the live Vercel deployment.
+    // Otherwise, the tracking pixel will be http://localhost:3000 which Gmail cannot reach.
+    if (detectedUrl.includes("localhost")) {
+      detectedUrl = "https://email-marketing-app-bay.vercel.app";
+    }
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || detectedUrl;
 
     const transporter = nodemailer.createTransport({
