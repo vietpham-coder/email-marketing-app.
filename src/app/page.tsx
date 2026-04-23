@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Mail, CheckCircle, Clock, Download, AlertCircle } from "lucide-react";
 import "./dashboard.css";
 import OverdueActionsBtn from "@/components/OverdueActionsBtn";
@@ -84,18 +84,18 @@ export default async function Home() {
       
       if (latestInteraction.openedAt) {
         readStatus = "Yes";
-        nextStepStr = "🟢 Nhắc nhở gửi Email chăm sóc hàng tuần";
+        nextStepStr = "ðŸŸ¢ Nháº¯c nhá»Ÿ gá»­i Email chÄƒm sÃ³c hÃ ng tuáº§n";
       } else {
         const daysSinceSent = (new Date().getTime() - new Date(latestInteraction.sentAt).getTime()) / (1000 * 3600 * 24);
         const hasFollowUp = interactions.length > 1;
         if (daysSinceSent >= 7) {
-          nextStepStr = "📞 Yêu cầu gọi điện trực tiếp";
+          nextStepStr = "ðŸ“ž YÃªu cáº§u gá»i Ä‘iá»‡n trá»±c tiáº¿p";
         } else if (daysSinceSent >= 5 && hasFollowUp) {
-          nextStepStr = "🔴 Yêu cầu nhắn tin qua Linkedin/Whatsapp";
+          nextStepStr = "ðŸ”´ YÃªu cáº§u nháº¯n tin qua Linkedin/Whatsapp";
         } else if (daysSinceSent >= 3 && !hasFollowUp) {
-          nextStepStr = "🟡 Gửi Email Follow Up";
+          nextStepStr = "ðŸŸ¡ Gá»­i Email Follow Up";
         } else if (daysSinceSent < 3) {
-          nextStepStr = "Đang chờ mở...";
+          nextStepStr = "Äang chá» má»Ÿ...";
         }
       }
     }
@@ -216,7 +216,7 @@ export default async function Home() {
                   <th>Customer Info</th>
                   <th>Latest Campaign</th>
                   <th>Opened?</th>
-                  <th>Đề xuất (Proposed Action)</th>
+                  <th>Äá» xuáº¥t (Proposed Action)</th>
                 </tr>
               </thead>
               <tbody>
@@ -245,5 +245,3 @@ export default async function Home() {
     </div>
   );
 }
-/ /   R e f r e s h   d e p l o y m e n t  
- 
