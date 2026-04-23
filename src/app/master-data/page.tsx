@@ -32,6 +32,7 @@ export default function MasterDataPage() {
       url.searchParams.append("search", searchQuery);
       url.searchParams.append("page", page.toString());
       url.searchParams.append("limit", limit.toString());
+      url.searchParams.append("t", Date.now().toString()); // Cache busting
 
       const res = await fetch(url.toString());
       const json = await res.json();

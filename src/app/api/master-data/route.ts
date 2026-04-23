@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getCampaigns, Interaction, ContactData } from "@/lib/storage";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
