@@ -16,9 +16,11 @@ export async function GET(req: NextRequest) {
 
   if (campaignId && email) {
     try {
+      console.log(`Tracking request received: c=${campaignId}, e=${email}`);
       await markAsOpened(campaignId, email);
-    } catch (e) {
-      console.error(`Error marking as opened for campaign ${campaignId}, email ${email}:`, e);
+      console.log(`Tracking success for ${email} in ${campaignId}`);
+    } catch (e: any) {
+      console.error(`Tracking error in API route: ${e.message}`);
     }
   }
 

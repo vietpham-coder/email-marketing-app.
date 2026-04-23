@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       `;
       // Inject Tracking Pixel
       const trackingUrl = `${appUrl}/api/track?c=${cid}&e=${encodeURIComponent(email)}`;
-      const pixel = `<img src="${trackingUrl}" width="1" height="1" style="display:none;" alt="" />`;
+      const pixel = `<img src="${trackingUrl}" width="1" height="1" style="opacity:0; position:absolute; pointer-events:none;" alt="" />`;
       htmlBody += pixel;
 
       try {
@@ -111,4 +111,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
