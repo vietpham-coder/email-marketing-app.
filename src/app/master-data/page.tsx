@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Database, Upload, Download, RefreshCw, Layers, Edit3, Filter, FileText, Check, Trash2 } from "lucide-react";
 import "../dashboard.css";
 
@@ -146,26 +146,29 @@ export default function MasterDataPage() {
   };
 
   // Determine which data to render based on viewMode
-  const renderData = viewMode === "all" 
-    ? data 
-    : data.filter(row => row._batchName && selectedBatches.has(row._batchName));
+  const renderData = useMemo(() => {
+    return viewMode === "all" 
+      ? data 
+      : data.filter(row => row._batchName && selectedBatches.has(row._batchName));
+  }, [data, viewMode, selectedBatches]);
 
   // Dynamically calculate headers from CURRENT renderData only
-  const headersSet = new Set<string>();
-  renderData.forEach(row => {
-    Object.keys(row).forEach(k => {
-      if (k !== "_batchName") headersSet.add(k);
+  const headers = useMemo(() => {
+    const headersSet = new Set<string>();
+    renderData.forEach(row => {
+      Object.keys(row).forEach(k => {
+        if (k !== "_batchName") headersSet.add(k);
+      });
     });
-  });
-  // Sort so Email/Name stays at front if exists
-  const headersObj = Array.from(headersSet);
-  const headers = headersObj.sort((a,b) => {
-    if (a.toLowerCase() === 'email') return -1;
-    if (b.toLowerCase() === 'email') return 1;
-    if (a.toLowerCase() === 'name') return -1;
-    if (b.toLowerCase() === 'name') return 1;
-    return 0;
-  });
+    
+    return Array.from(headersSet).sort((a, b) => {
+      if (a.toLowerCase() === 'email') return -1;
+      if (b.toLowerCase() === 'email') return 1;
+      if (a.toLowerCase() === 'name') return -1;
+      if (b.toLowerCase() === 'name') return 1;
+      return 0;
+    });
+  }, [renderData]);
 
   return (
     <div className="page-container animate-fade-in" style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", paddingBottom: "2rem" }}>

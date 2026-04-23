@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Send, Users, FileText, CheckCircle, ChevronRight, FastForward, Layers, Filter, RefreshCw, Trash2, Clock } from "lucide-react";
 import "./campaigns.css";
 
@@ -69,16 +69,17 @@ export default function CampaignsPage() {
   }, []);
 
   // Sync contacts when batch selection changes
-  useEffect(() => {
-    if (selectedBatches.size === 0) {
-      setContacts([]);
-      return;
-    }
-    const filtered = masterData
+  const contactsList = useMemo(() => {
+    if (selectedBatches.size === 0) return [];
+    return masterData
       .filter((c: any) => c._batchName && selectedBatches.has(c._batchName) && (c.email || c.Email))
       .map((c: any) => ({ ...c, _status: "pending" }));
-    setContacts(filtered);
   }, [selectedBatches, masterData]);
+
+  // Keep a local state for status updates (since status changes during send)
+  useEffect(() => {
+    setContacts(contactsList);
+  }, [contactsList]);
 
   const handleBatchToggle = (batchName: string) => {
     setSelectedBatches(prev => {
@@ -171,7 +172,7 @@ export default function CampaignsPage() {
 
   const currentContact = contacts[currentIndex];
 
-  const getColumns = () => {
+  const columns = useMemo(() => {
     if (contacts.length === 0) return [];
     const keysSet = new Set<string>();
     contacts.forEach(c => {
@@ -179,15 +180,15 @@ export default function CampaignsPage() {
         if (k !== '_status' && k !== '_batchName') keysSet.add(k);
       });
     });
-    const headersObj = Array.from(keysSet);
-    return headersObj.sort((a,b) => {
+    
+    return Array.from(keysSet).sort((a, b) => {
       if (a.toLowerCase() === 'email') return -1;
       if (b.toLowerCase() === 'email') return 1;
       if (a.toLowerCase() === 'name') return -1;
       if (b.toLowerCase() === 'name') return 1;
       return 0;
     });
-  };
+  }, [contacts]);
 
   const handleDeleteCampaign = async (id: string, name: string) => {
     if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn chiến dịch "${name}" khỏi hệ thống?\n(Khách hàng đã nhận mail sẽ không bị thu hồi, nhưng báo cáo chiến dịch này sẽ không còn)`)) {
@@ -494,7 +495,7 @@ export default function CampaignsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1200px" }}>
               <thead style={{ background: "var(--bg-card)", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
                 <tr>
-                  {getColumns().map(col => (
+                  {columns.map(col => (
                     <th key={col} style={{ padding: "1rem", textAlign: "left", fontSize: "0.875rem", fontWeight: 600, color: "var(--text-color)" }}>
                       {col}
                     </th>
@@ -513,7 +514,7 @@ export default function CampaignsPage() {
                       }} 
                       className={`hover-bg-gray-50 ${isCurrent ? "highlighted-row" : ""}`}
                     >
-                      {getColumns().map(col => (
+                      {columns.map(col => (
                         <td key={col} style={{ padding: "1rem", fontSize: "0.875rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
                           {c[col] || "-"}
                         </td>
