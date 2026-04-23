@@ -15,7 +15,10 @@ export async function POST(req: NextRequest) {
 
     const cid = campaignId || `camp-${Date.now()}`;
     const cName = campaignName || `Campaign ${new Date().toLocaleDateString()}`;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    const host = req.headers.get("host");
+    const protocol = host?.includes("localhost") ? "http" : "https";
+    const detectedUrl = host ? `${protocol}://${host}` : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || detectedUrl;
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp.gmail.com",
