@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMasterContacts, saveMasterContacts } from "@/lib/storage";
+import clientPromise from "@/lib/mongodb";
 
 export async function POST(req: Request) {
   try {
@@ -10,16 +10,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Missing batchName" }, { status: 400 });
     }
 
-    const currentContacts = await getMasterContacts();
+    const client = await clientPromise;
+    const db = client.db("email_marketing");
+    const collection = db.collection("master_contacts");
     
-    // Filter out contacts that match the deleted batchName
-    // If a contact belongs to multiple batches (if we ever support that), this deletes the whole contact.
-    // Given the current architecture, a contact has a single `_batchName` property as string.
-    const newContacts = currentContacts.filter(c => c._batchName !== batchName);
-    
-    const deletedCount = currentContacts.length - newContacts.length;
-
-    await saveMasterContacts(newContacts);
+    // Delete all contacts belonging to this batch
+    const result = await collection.deleteMany({ _batchName: batchName });
+    const deletedCount = result.deletedCount;
 
     return NextResponse.json({ 
       success: true, 
