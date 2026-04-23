@@ -4,7 +4,7 @@ import "./dashboard.css";
 import OverdueActionsBtn from "@/components/OverdueActionsBtn";
 import { getCampaigns, getMasterContacts, Interaction } from "@/lib/storage";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30; // Revalidate data every 30 seconds instead of every hit
 
 export default async function Home() {
   // Fetch and calculate data directly on the server (RSC) to improve performance

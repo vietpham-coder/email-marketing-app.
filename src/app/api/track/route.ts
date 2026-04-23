@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { markAsOpened } from "@/lib/storage";
 
+export const dynamic = "force-dynamic";
+
 // 1x1 transparent GIF byte array
 const TRANSPARENT_GIF = Buffer.from(
   "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
