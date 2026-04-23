@@ -5,7 +5,7 @@ import OverdueActionsBtn from "@/components/OverdueActionsBtn";
 import AnalyticsCharts from "@/components/AnalyticsCharts";
 import { getCampaigns, getMasterContacts, Interaction } from "@/lib/storage";
 
-export const revalidate = 30; // Revalidate data every 30 seconds instead of every hit
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   // Fetch and calculate data directly on the server (RSC) to improve performance
@@ -85,18 +85,18 @@ export default async function Home() {
       
       if (latestInteraction.openedAt) {
         readStatus = "Yes";
-        nextStepStr = "ðŸŸ¢ Nháº¯c nhá»Ÿ gá»­i Email chÄƒm sÃ³c hÃ ng tuáº§n";
+        nextStepStr = "🟢 Nhắc nhở gửi Email chăm sóc hàng tuần";
       } else {
         const daysSinceSent = (new Date().getTime() - new Date(latestInteraction.sentAt).getTime()) / (1000 * 3600 * 24);
         const hasFollowUp = interactions.length > 1;
         if (daysSinceSent >= 7) {
-          nextStepStr = "ðŸ“ž YÃªu cáº§u gá»i Ä‘iá»‡n trá»±c tiáº¿p";
+          nextStepStr = "📞 Yêu cầu gọi điện trực tiếp";
         } else if (daysSinceSent >= 5 && hasFollowUp) {
-          nextStepStr = "ðŸ”´ YÃªu cáº§u nháº¯n tin qua Linkedin/Whatsapp";
+          nextStepStr = "🔴 Yêu cầu nhắn tin qua Linkedin/Whatsapp";
         } else if (daysSinceSent >= 3 && !hasFollowUp) {
-          nextStepStr = "ðŸŸ¡ Gá»­i Email Follow Up";
+          nextStepStr = "🟡 Gửi Email Follow Up";
         } else if (daysSinceSent < 3) {
-          nextStepStr = "Äang chá» má»Ÿ...";
+          nextStepStr = "Đang chờ mở...";
         }
       }
     }
