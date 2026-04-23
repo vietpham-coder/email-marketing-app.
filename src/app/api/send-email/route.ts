@@ -48,8 +48,9 @@ export async function POST(req: NextRequest) {
     const interactionsRecord: Record<string, any[]> = {};
 
     for (const contact of contacts) {
-      const email = contact.Email || contact.email;
-      if (!email) continue;
+      const rawEmail = contact.Email || contact.email;
+      if (!rawEmail) continue;
+      const email = rawEmail.toLowerCase().trim();
 
       const personalizedSubject = parseTemplate(subjectTemplate, contact);
       let htmlBodyRaw = parseTemplate(bodyTemplate, contact);

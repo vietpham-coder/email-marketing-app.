@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import { Database, Upload, Download, RefreshCw, Layers, Edit3, Filter, FileText, Check, Trash2 } from "lucide-react";
+import { Database, Upload, Download, RefreshCw, Layers, Edit3, Filter, FileText, Check, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
 import "../dashboard.css";
 
 export default function MasterDataPage() {
@@ -9,6 +9,12 @@ export default function MasterDataPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Search & Pagination States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   // View States
   const [viewMode, setViewMode] = useState<"all" | "batch">("all");
@@ -22,10 +28,16 @@ export default function MasterDataPage() {
   const fetchMasterData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/master-data");
+      const url = new URL("/api/master-data", window.location.origin);
+      url.searchParams.append("search", searchQuery);
+      url.searchParams.append("page", page.toString());
+      url.searchParams.append("limit", limit.toString());
+
+      const res = await fetch(url.toString());
       const json = await res.json();
       if (json.success) {
         setData(json.data);
+        setTotalRecords(json.total || json.count);
         
         // Extract unique batches
         const batches = new Set<string>();
@@ -41,8 +53,11 @@ export default function MasterDataPage() {
   };
 
   useEffect(() => {
-    fetchMasterData();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchMasterData();
+    }, 500); // Debounce search
+    return () => clearTimeout(timer);
+  }, [searchQuery, page, limit]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -180,7 +195,18 @@ export default function MasterDataPage() {
           <p className="page-subtitle">Centralized tracker with dynamic columns and batch filtering</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="search-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Filter size={18} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              placeholder="Tìm kiếm Email hoặc Tên..." 
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+              style={{ padding: '0.6rem 1rem 0.6rem 2.2rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-main)', width: '250px' }}
+            />
+          </div>
+
           <input 
             type="file" 
             accept=".xlsx, .xls, .csv" 
@@ -331,6 +357,49 @@ export default function MasterDataPage() {
                 </tbody>
               </table>
             )}
+          </div>
+          <div className="pagination-footer flex-between p-4" style={{ borderTop: "1px solid var(--border-color)", background: "rgba(0,0,0,0.02)", flexShrink: 0 }}>
+            <div className="text-muted text-sm font-medium">
+              Hiển thị <span style={{ color: "var(--text-main)" }}>{renderData.length}</span> trong <span style={{ color: "var(--text-main)" }}>{totalRecords}</span> bản ghi
+            </div>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "8px", overflow: "hidden" }}>
+                <button 
+                  className="hover:bg-[rgba(255,255,255,0.05)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  style={{ padding: "0.5rem", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  disabled={page === 1 || loading}
+                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                  title="Trang trước"
+                >
+                  <ArrowLeft size={20} style={{ color: "var(--text-main)" }} />
+                </button>
+                
+                <div style={{ padding: "0.5rem 1rem", borderLeft: "1px solid var(--border-color)", borderRight: "1px solid var(--border-color)", fontSize: "0.875rem", fontWeight: 600, minWidth: "100px", textAlign: "center" }}>
+                  Trang {page} / {Math.ceil(totalRecords / limit) || 1}
+                </div>
+                
+                <button 
+                  className="hover:bg-[rgba(255,255,255,0.05)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  style={{ padding: "0.5rem", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  disabled={page * limit >= totalRecords || loading}
+                  onClick={() => setPage(prev => prev + 1)}
+                  title="Trang sau"
+                >
+                  <ArrowRight size={20} style={{ color: "var(--text-main)" }} />
+                </button>
+              </div>
+
+              <select 
+                value={limit} 
+                onChange={e => { setLimit(parseInt(e.target.value)); setPage(1); }}
+                style={{ padding: "0.5rem 0.75rem", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-surface)", color: "var(--text-main)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", outline: "none" }}
+              >
+                <option value={20}>20 bản ghi/trang</option>
+                <option value={50}>50 bản ghi/trang</option>
+                <option value={100}>100 bản ghi/trang</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

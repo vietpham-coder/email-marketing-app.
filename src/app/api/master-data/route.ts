@@ -1,9 +1,35 @@
 import { NextResponse } from "next/server";
-import { getMasterContacts, getCampaigns, Interaction } from "@/lib/storage";
+import clientPromise from "@/lib/mongodb";
+import { getCampaigns, Interaction, ContactData } from "@/lib/storage";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const allContacts = await getMasterContacts();
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get("search") || "";
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "1000000"); // Default to essentially no limit if not provided
+    const skip = (page - 1) * limit;
+
+    const client = await clientPromise;
+    const db = client.db("email_marketing");
+    
+    // Build filter
+    const filter: any = {};
+    if (search) {
+      filter.$or = [
+        { email: { $regex: search, $options: "i" } },
+        { Name: { $regex: search, $options: "i" } },
+        { name: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const allContacts = await db.collection<ContactData>("master_contacts")
+      .find(filter)
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    const totalCount = await db.collection("master_contacts").countDocuments(filter);
     const allCampaigns = await getCampaigns();
     
     // We group by email
@@ -34,7 +60,7 @@ export async function GET() {
 
     for (const contact of allContacts) {
       if (!contact.email) continue;
-      const key = contact.email.toLowerCase().replace(/\./g, '_');
+      const key = contact.email.toLowerCase().trim().replace(/\./g, '_');
       
       const interactionHistory = interactionMap.get(key);
       let sentDateStr = "N/A";
@@ -83,7 +109,14 @@ export async function GET() {
       reportData.push(row);
     }
 
-    return NextResponse.json({ success: true, count: reportData.length, data: reportData });
+    return NextResponse.json({ 
+      success: true, 
+      count: reportData.length, 
+      total: totalCount,
+      page,
+      limit,
+      data: reportData 
+    });
   } catch (error: any) {
     console.error("API error master-data GET:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

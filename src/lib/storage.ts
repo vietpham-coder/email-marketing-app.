@@ -46,13 +46,27 @@ export async function getMasterContacts(): Promise<ContactData[]> {
 export async function saveMasterContacts(contacts: ContactData[]) {
   const client = await clientPromise;
   const db = client.db(DB_NAME);
+  const collection = db.collection("master_contacts");
   
-  // Clear and insert all (or we could use upsert logic)
-  // To keep it simple and match previous behavior of overwriting:
-  await db.collection("master_contacts").deleteMany({});
-  if (contacts.length > 0) {
-    const sanitized = sanitizeKeys(contacts);
-    await db.collection("master_contacts").insertMany(sanitized);
+  if (contacts.length === 0) return;
+
+  const ops = contacts.map(contact => {
+    if (!contact.email) return null;
+    const email = contact.email.toLowerCase();
+    const sanitized = sanitizeKeys(contact);
+    const { _id, ...contactWithoutId } = sanitized;
+    
+    return {
+      updateOne: {
+        filter: { email: email },
+        update: { $set: { ...contactWithoutId, email: email } },
+        upsert: true
+      }
+    };
+  }).filter(Boolean);
+
+  if (ops.length > 0) {
+    await collection.bulkWrite(ops as any);
   }
 }
 
@@ -81,12 +95,26 @@ export async function upsertMasterContacts(newContacts: ContactData[]) {
 export async function saveCampaign(record: CampaignRecord) {
   const client = await clientPromise;
   const db = client.db(DB_NAME);
+  const collection = db.collection<CampaignRecord>("campaigns");
   
   const sanitized = sanitizeKeys(record);
-  
-  await db.collection<CampaignRecord>("campaigns").updateOne(
+  const { interactions, audience, ...rest } = sanitized;
+
+  // We use $set for general info and $addToSet for audience to avoid duplicates
+  // For interactions, we use a loop to build $set for specific nested keys to avoid overwriting the whole object
+  const updateObj: any = {
+    $set: { ...rest },
+    $addToSet: { audience: { $each: audience } }
+  };
+
+  // Build the interactions update
+  Object.keys(interactions).forEach(emailKey => {
+    updateObj.$set[`interactions.${emailKey}`] = interactions[emailKey];
+  });
+
+  await collection.updateOne(
     { id: record.id },
-    { $set: sanitized },
+    updateObj,
     { upsert: true }
   );
 
@@ -112,12 +140,22 @@ export async function markAsOpened(campaignId: string, email: string) {
   const db = client.db(DB_NAME);
   const collection = db.collection<CampaignRecord>("campaigns");
 
-  // Email keys in interactions are sanitized (dots replaced with underscores)
-  const sanitizedEmail = email.replace(/\./g, '_');
+  // Normalize email and sanitize for MongoDB keys
+  const normalizedEmail = email.toLowerCase().trim();
+  const sanitizedEmail = normalizedEmail.replace(/\./g, '_');
+
+  console.log(`Tracking request: campaignId=${campaignId}, email=${email}, sanitized=${sanitizedEmail}`);
 
   const campaign = await collection.findOne({ id: campaignId });
-  if (!campaign || !campaign.interactions[sanitizedEmail]) {
-    console.log(`Tracking failed: Campaign ${campaignId} or email ${sanitizedEmail} not found`);
+  if (!campaign) {
+    console.log(`Tracking failed: Campaign ${campaignId} not found`);
+    return;
+  }
+  
+  if (!campaign.interactions[sanitizedEmail]) {
+    console.log(`Tracking failed: Email ${sanitizedEmail} not found in campaign ${campaignId}`);
+    // Log available keys to help debug
+    console.log(`Available interaction keys: ${Object.keys(campaign.interactions).join(', ')}`);
     return;
   }
 
@@ -174,8 +212,8 @@ export async function getMasterReportData() {
 
   for (const contact of allContacts) {
     if (!contact.email) continue;
-    // We must sanitize the lookup key because MongoDB interaction keys are sanitized (dots -> underscores)
-    const key = contact.email.toLowerCase().replace(/\./g, '_');
+    // Normalize and sanitize the lookup key
+    const key = contact.email.toLowerCase().trim().replace(/\./g, '_');
     const interactionHistory = interactionMap.get(key);
     
     let sentDateStr = "N/A";

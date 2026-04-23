@@ -1,7 +1,8 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Mail, CheckCircle, Clock, Download, AlertCircle } from "lucide-react";
 import "./dashboard.css";
 import OverdueActionsBtn from "@/components/OverdueActionsBtn";
+import AnalyticsCharts from "@/components/AnalyticsCharts";
 import { getCampaigns, getMasterContacts, Interaction } from "@/lib/storage";
 
 export const revalidate = 30; // Revalidate data every 30 seconds instead of every hit
@@ -170,6 +171,8 @@ export default async function Home() {
           </div>
         </div>
       </div>
+
+      <AnalyticsCharts campaigns={campaigns} />
 
       <div className="charts-grid mt-6">
         <div className="premium-card chart-container">

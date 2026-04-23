@@ -26,7 +26,8 @@ export async function GET(req: NextRequest) {
         const email = contact.Email || contact.email;
         if (!email) continue;
 
-        const interactions = campaign.interactions[email] || [];
+        const sanitizedKey = email.toLowerCase().trim().replace(/\./g, '_');
+        const interactions = campaign.interactions[sanitizedKey] || [];
         
         let sentDateStr = "N/A";
         let readStatusStr = "No";

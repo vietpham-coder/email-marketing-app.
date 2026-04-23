@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Send, Users, FileText, CheckCircle, ChevronRight, FastForward, Layers, Filter, RefreshCw, Trash2, Clock } from "lucide-react";
+import { Send, Users, FileText, CheckCircle, ChevronRight, FastForward, Layers, Filter, RefreshCw, Trash2, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
+import { checkSpam, SpamResult } from "@/lib/spam-checker";
 import "./campaigns.css";
 
 export default function CampaignsPage() {
   const [step, setStep] = useState(1);
   const [isSending, setIsSending] = useState(false);
+  const [spamAnalysis, setSpamAnalysis] = useState<SpamResult | null>(null);
 
   // Context loading state
   const [loadingContext, setLoadingContext] = useState(true);
@@ -27,6 +29,8 @@ export default function CampaignsPage() {
   // Step 3: Review Queue
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sentCount, setSentCount] = useState(0);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [stopSending, setStopSending] = useState(false);
 
   // Fetch contextual master data and templates on mount
   useEffect(() => {
@@ -90,14 +94,17 @@ export default function CampaignsPage() {
     });
   };
 
-  const handleSelectTemplate = (tpl: any) => {
-    setSelectedTemplateId(tpl.id);
+  const handleSelectTemplate = (template: any) => {
+    setSelectedTemplateId(template.id);
     setTemplateData({
-      name: tpl.name,
-      subject: tpl.subject,
-      bodyHtml: tpl.bodyHtml,
-      attachments: tpl.attachments || []
+      name: template.name,
+      subject: template.subject,
+      bodyHtml: template.bodyHtml,
+      attachments: template.attachments || []
     });
+    const analysis = checkSpam(template.subject, template.bodyHtml);
+    setSpamAnalysis(analysis);
+    setStep(3);
   };
 
   const parseTemplate = (template: string, data: any) => {
@@ -136,19 +143,20 @@ export default function CampaignsPage() {
     setIsSending(true);
     const contact = contacts[currentIndex];
     const emailToConnect = contact.Email || contact.email;
+    const cid = activeCampaignId || `camp-${Date.now()}`;
+    if (!activeCampaignId) setActiveCampaignId(cid);
     
     try {
       const res = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          campaignId: `camp-${Date.now()}`,
+          campaignId: cid,
           campaignName: `Manual Blast - ${templateData.name}`,
           contacts: [contact],
           subjectTemplate: templateData.subject,
           bodyTemplate: templateData.bodyHtml,
           attachments: templateData.attachments,
-          // Infer followup based on previous interactions if possible, defaulting to generic blast logic
           isFollowUp: false 
         })
       });
@@ -168,6 +176,67 @@ export default function CampaignsPage() {
     
     setIsSending(false);
     handleNextContact();
+  };
+
+  const handleSendAll = async () => {
+    if (!templateData || contacts.length === 0) return;
+    
+    setIsSending(true);
+    setStopSending(false);
+    
+    const cid = activeCampaignId || `camp-${Date.now()}`;
+    if (!activeCampaignId) setActiveCampaignId(cid);
+
+    let currentIdx = currentIndex;
+    
+    while (currentIdx < contacts.length) {
+      if (stopSending) break;
+
+      const contact = contacts[currentIdx];
+      if (contact._status === 'success' || contact._status === 'skipped') {
+        currentIdx++;
+        setCurrentIndex(currentIdx);
+        continue;
+      }
+
+      try {
+        const res = await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            campaignId: cid,
+            campaignName: `Auto Blast - ${templateData.name}`,
+            contacts: [contact],
+            subjectTemplate: templateData.subject,
+            bodyTemplate: templateData.bodyHtml,
+            attachments: templateData.attachments,
+            isFollowUp: false 
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          setSentCount(prev => prev + 1);
+          setContacts(prev => prev.map((c, i) => i === currentIdx ? { ...c, _status: "success" } : c));
+        } else {
+          setContacts(prev => prev.map((c, i) => i === currentIdx ? { ...c, _status: "failed" } : c));
+        }
+      } catch (e) {
+        console.error("Failed to send", e);
+        setContacts(prev => prev.map((c, i) => i === currentIdx ? { ...c, _status: "failed" } : c));
+      }
+
+      currentIdx++;
+      setCurrentIndex(currentIdx);
+      
+      if (currentIdx >= contacts.length) {
+        setStep(4);
+        break;
+      }
+
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    
+    setIsSending(false);
   };
 
   const currentContact = contacts[currentIndex];
@@ -424,6 +493,34 @@ export default function CampaignsPage() {
             </div>
             <p className="text-muted border-b pb-4 border-slate-700">Hãy đọc cẩn thận và soát lại biến số dữ liệu ({`{{Name}}`}, v.v..) trước khi ấn vào nút phát tin.</p>
             
+            {/* Spam Analysis Report */}
+            {spamAnalysis && (
+              <div className="premium-card mt-6 mb-6" style={{ background: spamAnalysis.risk === 'High' ? 'rgba(239, 68, 68, 0.05)' : spamAnalysis.risk === 'Medium' ? 'rgba(255, 152, 0, 0.05)' : 'rgba(16, 185, 129, 0.05)', borderColor: spamAnalysis.risk === 'High' ? 'var(--danger)' : spamAnalysis.risk === 'Medium' ? '#FF9800' : '#10B981' }}>
+                <div className="flex-between mb-4">
+                  <h3 className="font-semibold flex items-center gap-2" style={{ color: spamAnalysis.risk === 'High' ? 'var(--danger)' : spamAnalysis.risk === 'Medium' ? '#FF9800' : '#10B981' }}>
+                    {spamAnalysis.risk === 'Low' ? <ShieldCheck size={20}/> : <AlertTriangle size={20}/>}
+                    Phân tích rủi ro Spam: {spamAnalysis.risk}
+                  </h3>
+                  <div className="text-sm font-bold">Điểm rủi ro: {spamAnalysis.score}/100</div>
+                </div>
+                {spamAnalysis.warnings.length > 0 && (
+                  <ul className="text-sm space-y-1">
+                    {spamAnalysis.warnings.map((w, i) => (
+                      <li key={i} className="flex items-center gap-2 text-muted">
+                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor' }} />
+                        {w}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {spamAnalysis.risk !== 'Low' && (
+                  <p className="text-xs mt-4 italic opacity-70">
+                    * Khuyên dùng: Hãy điều chỉnh nội dung (giảm từ khóa nhạy cảm, thêm cá nhân hóa) để tăng tỷ lệ vào Inbox.
+                  </p>
+                )}
+              </div>
+            )}
+            
             {currentContact && (
               <div className="preview-box mt-4" style={{ border: "1px solid var(--border-color)", background: "rgba(255,255,255,0.02)", borderRadius: "8px", overflow: "hidden" }}>
                 <div style={{ background: "rgba(0,0,0,0.2)", padding: "1rem", borderBottom: "1px solid var(--border-color)" }}>
@@ -454,13 +551,26 @@ export default function CampaignsPage() {
               </div>
             )}
 
-            <div className="step-actions mt-6 flex justify-between">
+            <div className="step-actions mt-6 flex flex-wrap gap-4 justify-between">
               <button className="btn-secondary" onClick={handleSkipContact} disabled={isSending}>
                 <FastForward size={16} /> Bỏ qua (Skip)
               </button>
-              <button className="btn-primary" onClick={handleSendSingle} disabled={isSending} style={{ background: "linear-gradient(135deg, #FF9800, #F44336)", boxShadow: "0 4px 14px 0 rgba(255, 87, 34, 0.3)" }}>
-                {isSending ? "Đang gửi..." : <><Send size={16} /> Phát Cấu Hình Tới Khách Hàng Này</>}
-              </button>
+              
+              <div className="flex gap-4">
+                {isSending ? (
+                  <button className="btn-secondary" onClick={() => setStopSending(true)} style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>
+                    Dừng gửi (Stop)
+                  </button>
+                ) : (
+                  <button className="btn-secondary" onClick={handleSendAll} style={{ color: "var(--primary)", borderColor: "var(--primary)" }}>
+                    <RefreshCw size={16} /> Gửi tất cả tự động (Send All)
+                  </button>
+                )}
+
+                <button className="btn-primary" onClick={handleSendSingle} disabled={isSending} style={{ background: "linear-gradient(135deg, #FF9800, #F44336)", boxShadow: "0 4px 14px 0 rgba(255, 87, 34, 0.3)" }}>
+                  {isSending ? "Đang gửi..." : <><Send size={16} /> Gửi thủ công từng người</>}
+                </button>
+              </div>
             </div>
           </div>
         )}

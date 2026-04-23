@@ -47,7 +47,8 @@ export async function GET() {
     const interactionMap = new Map<string, { latestCampaign: string, interactions: Interaction[] }>();
     for (const campaign of allCampaigns) {
       for (const email of Object.keys(campaign.interactions)) {
-        const interactions = campaign.interactions[email];
+        const sanitizedKey = email.toLowerCase().trim().replace(/\./g, '_');
+        const interactions = campaign.interactions[sanitizedKey] || [];
         if (!interactions || interactions.length === 0) continue;
         const key = email.toLowerCase();
         const existing = interactionMap.get(key);
@@ -64,7 +65,8 @@ export async function GET() {
     }
 
     const customers = allContacts.map(contact => {
-      const key = contact.email?.toLowerCase();
+      const email = contact.email || contact.Email || "";
+      const key = email.toLowerCase().trim().replace(/\./g, '_');
       const interactionHistory = key ? interactionMap.get(key) : null;
       let nextStepStr = "N/A";
       let readStatus = "No";

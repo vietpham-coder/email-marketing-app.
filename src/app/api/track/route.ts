@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     try {
       await markAsOpened(campaignId, email);
     } catch (e) {
-      console.error("Error marking as opened", e);
+      console.error(`Error marking as opened for campaign ${campaignId}, email ${email}:`, e);
     }
   }
 
