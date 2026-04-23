@@ -34,7 +34,7 @@ export async function GET() {
 
     for (const contact of allContacts) {
       if (!contact.email) continue;
-      const key = contact.email.toLowerCase();
+      const key = contact.email.toLowerCase().replace(/\./g, '_');
       
       const interactionHistory = interactionMap.get(key);
       let sentDateStr = "N/A";
